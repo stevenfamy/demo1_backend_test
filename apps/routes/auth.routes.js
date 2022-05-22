@@ -7,6 +7,7 @@ module.exports = (app) => {
   router.post("/signup", auth.createNewAccount);
   router.post("/resend-verification-email", auth.resendVerification);
   router.post("/verifiy/:tokens", auth.verifyEmail);
+  router.post("/login", auth.doLogin);
 
   app.use("/", router);
 };

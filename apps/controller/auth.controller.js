@@ -16,6 +16,7 @@ const {
 const Users = db.users;
 const UsersProfile = db.usersProfile;
 const UsersTokens = db.usersTokens;
+const UsersSession = db.usersSession;
 
 const jwtSecret = "R1O8}_z!hE^TvcL";
 
@@ -118,6 +119,54 @@ exports.verifyEmail = async (req, res) => {
   await tokenData.destroy();
 
   // Do auto login here
+  const jwtResult = createJWToken(userData.id);
 
-  return res.sendStatus(200);
+  await UsersSession.create({
+    user_id: userData.id,
+    selector: jwtResult.rawToken.selector,
+    hashed_token: crypto
+      .createHash("md5")
+      .update(jwtResult.rawToken.token)
+      .digest("hex"),
+    created_on: Math.floor(new Date().getTime() / 1000),
+    session_method: "Email",
+  });
+
+  return res.status(200).send({ authToken: jwtResult.jwtToken });
+};
+
+exports.doLogin = async (req, res) => {
+  const { email, password } = req.body;
+
+  if (!email && !password)
+    return res
+      .status(400)
+      .send({ error: "Email address & Password is required" });
+
+  const userData = await getUserByEmail(email);
+
+  if (!userData) return res.status(404).send({ error: "Account not found!" });
+
+  const checkPassword = bcrypt.compareSync(password, userData.password);
+
+  if (!checkPassword)
+    return res.status(400).send({ error: "Password Account not match!" });
+
+  const jwtResult = createJWToken(userData.id);
+
+  const sessionsData = await UsersSession.create({
+    user_id: userData.id,
+    selector: jwtResult.rawToken.selector,
+    hashed_token: crypto
+      .createHash("md5")
+      .update(jwtResult.rawToken.token)
+      .digest("hex"),
+    created_on: Math.floor(new Date().getTime() / 1000),
+    session_method: "Email",
+  });
+
+  if (!sessionsData)
+    return res.status(500).send({ error: "Login Failed!, please try again" });
+
+  return res.status(200).send({ authToken: jwtResult.jwtToken });
 };

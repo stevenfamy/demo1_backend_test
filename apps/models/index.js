@@ -21,5 +21,6 @@ db.sequelize = sequelize;
 db.users = require("./users.model")(sequelize, Sequelize);
 db.usersProfile = require("./users_profile.model")(sequelize, Sequelize);
 db.usersTokens = require("./users_tokens.model")(sequelize, Sequelize);
+db.usersSession = require("./users_session.model")(sequelize, Sequelize);
 
 module.exports = db;

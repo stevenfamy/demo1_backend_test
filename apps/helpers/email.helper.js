@@ -39,7 +39,7 @@ exports.createConfirmationEmail = async (userId) => {
 
   const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
   const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
-  const verificationUrl = `${process.env.FRONTEND_URL}/verified-email/${tokens}`;
+  const verificationUrl = `${process.env.FRONTEND_URL}/verified-email/?tokens=${tokens}`;
 
   sendSmtpEmail.subject = "Email Verification";
   sendSmtpEmail.htmlContent = `<html><body><h1>Verify Your email</h1><br>Click this link to verified your email: <br> <a href="${verificationUrl}">${verificationUrl}</a> </body></html>`;
@@ -86,7 +86,7 @@ exports.resendConfirmationEmail = async (userId) => {
 
   const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
   const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
-  const verificationUrl = `${process.env.FRONTEND_URL}/verified-email/${tokenData.tokens}`;
+  const verificationUrl = `${process.env.FRONTEND_URL}/verified-email/?tokens=${tokenData.tokens}`;
 
   sendSmtpEmail.subject = "Email Verification";
   sendSmtpEmail.htmlContent = `<html><body><h1>Verify Your email</h1><br>Click this link to verified your email: <br> <a href="${verificationUrl}">${verificationUrl}</a> </body></html>`;

@@ -37,21 +37,23 @@ const createJWToken = (userId) => {
 exports.createNewAccount = async (req, res) => {
   const { email, password, firstName, lastName } = req.body;
 
-  const checkPasswordResult = await checkPasswordRequirement(password);
-  if (checkPasswordResult.length)
-    return res.status(400).send(checkPasswordResult);
-
-  const existUser = await Users.findAll({
+  const existUser = await Users.findOne({
     where: {
       email,
     },
   });
 
-  if (existUser.length)
+  if (existUser)
     return res.status(400).send({
       Error: "Email already registered",
-      Email_verification: !!existUser.verification,
+      Email_verification: existUser.verification,
     });
+
+  const checkPasswordResult = await checkPasswordRequirement(password);
+  if (checkPasswordResult.length)
+    return res
+      .status(400)
+      .send({ validationFailed: true, checkPasswordResult });
 
   const hashedNewPwd = bcrypt.hashSync(password, 8);
 
@@ -146,6 +148,18 @@ exports.doLogin = async (req, res) => {
   const userData = await getUserByEmail(email);
 
   if (!userData) return res.status(404).send({ error: "Account not found!" });
+
+  if (!userData.verification)
+    return res.status(400).send({
+      error: "Haven't verified your email account!",
+      Email_verification: userData.verification,
+    });
+
+  if (!userData.status)
+    return res.status(400).send({
+      error: "Account not active!",
+      Email_verification: userData.verification,
+    });
 
   const checkPassword = bcrypt.compareSync(password, userData.password);
 

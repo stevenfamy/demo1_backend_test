@@ -14,6 +14,8 @@ app.use(
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Load the routes file
 require("./apps/routes/auth.routes")(app);
 
 const server = app.listen(PORT);

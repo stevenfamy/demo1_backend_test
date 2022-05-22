@@ -4,7 +4,10 @@ const crypto = require("crypto");
 const db = require("../models");
 
 const { sequelize } = db;
-const { checkPasswordRequirement } = require("../helpers/users.helper");
+const {
+  checkPasswordRequirement,
+  getUserByEmail,
+} = require("../helpers/users.helper");
 const {
   createConfirmationEmail,
   resendConfirmationEmail,
@@ -12,6 +15,23 @@ const {
 
 const Users = db.users;
 const UsersProfile = db.usersProfile;
+const UsersTokens = db.usersTokens;
+
+const jwtSecret = "R1O8}_z!hE^TvcL";
+
+const createJWToken = (userId) => {
+  const rawToken = {
+    selector: crypto.randomBytes(10).toString("hex"),
+    token: crypto.randomBytes(25).toString("hex"),
+    userId: userId,
+  };
+  const result = {
+    rawToken: rawToken,
+    jwtToken: jwt.sign({ rawToken }, jwtSecret),
+  };
+
+  return result;
+};
 
 exports.createNewAccount = async (req, res) => {
   const { email, password, firstName, lastName } = req.body;
@@ -71,6 +91,33 @@ exports.resendVerification = async (req, res) => {
 
   const result = await resendConfirmationEmail(userData.id);
   if (result !== true) return res.status(400).send(result);
+
+  return res.sendStatus(200);
+};
+
+exports.verifyEmail = async (req, res) => {
+  const { tokens } = req.params;
+
+  const tokenData = await UsersTokens.findOne({ where: { tokens } });
+
+  if (!tokenData || tokenData.token_type !== "Email Verification")
+    return res.status(400).send({ error: "Invalid Tokens!" });
+
+  const userData = await Users.findOne({ where: { id: tokenData.user_id } });
+
+  if (!userData)
+    return res
+      .status(500)
+      .send({ error: "Something Wrong, please try again!" });
+
+  userData.verification = 1;
+  userData.status = 1;
+
+  await userData.save();
+
+  await tokenData.destroy();
+
+  // Do auto login here
 
   return res.sendStatus(200);
 };

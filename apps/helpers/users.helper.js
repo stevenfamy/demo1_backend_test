@@ -1,5 +1,7 @@
 const PassVal = require("password-validator");
+const db = require("../models");
 
+const Users = db.users;
 exports.checkPasswordRequirement = async (password) => {
   const passReq = new PassVal();
 
@@ -31,3 +33,5 @@ exports.checkPasswordRequirement = async (password) => {
 
   return result;
 };
+
+exports.getUserByEmail = async (email) => Users.findOne({ where: { email } });

@@ -4,7 +4,10 @@ const crypto = require("crypto");
 const db = require("../models");
 
 const { sequelize } = db;
-const { checkPasswordRequirement } = require("../helpers/users.helper");
+const {
+  checkPasswordRequirement,
+  getUserByEmail,
+} = require("../helpers/users.helper");
 const {
   createConfirmationEmail,
   resendConfirmationEmail,
@@ -12,6 +15,24 @@ const {
 
 const Users = db.users;
 const UsersProfile = db.usersProfile;
+const UsersTokens = db.usersTokens;
+const UsersSession = db.usersSession;
+
+const jwtSecret = "R1O8}_z!hE^TvcL";
+
+const createJWToken = (userId) => {
+  const rawToken = {
+    selector: crypto.randomBytes(10).toString("hex"),
+    token: crypto.randomBytes(25).toString("hex"),
+    userId: userId,
+  };
+  const result = {
+    rawToken: rawToken,
+    jwtToken: jwt.sign({ rawToken }, jwtSecret),
+  };
+
+  return result;
+};
 
 exports.createNewAccount = async (req, res) => {
   const { email, password, firstName, lastName } = req.body;
@@ -73,4 +94,79 @@ exports.resendVerification = async (req, res) => {
   if (result !== true) return res.status(400).send(result);
 
   return res.sendStatus(200);
+};
+
+exports.verifyEmail = async (req, res) => {
+  const { tokens } = req.params;
+
+  const tokenData = await UsersTokens.findOne({ where: { tokens } });
+
+  if (!tokenData || tokenData.token_type !== "Email Verification")
+    return res.status(400).send({ error: "Invalid Tokens!" });
+
+  const userData = await Users.findOne({ where: { id: tokenData.user_id } });
+
+  if (!userData)
+    return res
+      .status(500)
+      .send({ error: "Something Wrong, please try again!" });
+
+  userData.verification = 1;
+  userData.status = 1;
+
+  await userData.save();
+
+  await tokenData.destroy();
+
+  // Do auto login here
+  const jwtResult = createJWToken(userData.id);
+
+  await UsersSession.create({
+    user_id: userData.id,
+    selector: jwtResult.rawToken.selector,
+    hashed_token: crypto
+      .createHash("md5")
+      .update(jwtResult.rawToken.token)
+      .digest("hex"),
+    created_on: Math.floor(new Date().getTime() / 1000),
+    session_method: "Email",
+  });
+
+  return res.status(200).send({ authToken: jwtResult.jwtToken });
+};
+
+exports.doLogin = async (req, res) => {
+  const { email, password } = req.body;
+
+  if (!email && !password)
+    return res
+      .status(400)
+      .send({ error: "Email address & Password is required" });
+
+  const userData = await getUserByEmail(email);
+
+  if (!userData) return res.status(404).send({ error: "Account not found!" });
+
+  const checkPassword = bcrypt.compareSync(password, userData.password);
+
+  if (!checkPassword)
+    return res.status(400).send({ error: "Password Account not match!" });
+
+  const jwtResult = createJWToken(userData.id);
+
+  const sessionsData = await UsersSession.create({
+    user_id: userData.id,
+    selector: jwtResult.rawToken.selector,
+    hashed_token: crypto
+      .createHash("md5")
+      .update(jwtResult.rawToken.token)
+      .digest("hex"),
+    created_on: Math.floor(new Date().getTime() / 1000),
+    session_method: "Email",
+  });
+
+  if (!sessionsData)
+    return res.status(500).send({ error: "Login Failed!, please try again" });
+
+  return res.status(200).send({ authToken: jwtResult.jwtToken });
 };

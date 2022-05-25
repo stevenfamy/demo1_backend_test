@@ -184,3 +184,53 @@ exports.doLogin = async (req, res) => {
 
   return res.status(200).send({ authToken: jwtResult.jwtToken });
 };
+
+exports.checkAuth = async (req, res, next) => {
+  const authToken = req.headers.authtoken;
+  if (!authToken)
+    return res
+      .status(401)
+      .send({ error: "Access Denied, authToken not found!" });
+
+  let result = {};
+  try {
+    result = jwt.verify(authToken, jwtSecret);
+  } catch (e) {
+    return res.status(500).send();
+  }
+
+  if (!result) return res.sendStatus(401);
+
+  const sessionData = await UsersSession.findOne({
+    where: {
+      selector: result.rawToken.selector,
+      hashed_token: crypto
+        .createHash("md5")
+        .update(result.rawToken.token)
+        .digest("hex"),
+    },
+  });
+
+  if (!sessionData) return res.sendStatus(401);
+
+  req.userId = sessionData.user_id;
+  req.sessionsId = sessionData.id;
+
+  sessionData.last_seen = Math.floor(new Date().getTime() / 1000);
+  await sessionData.save();
+
+  return next();
+};
+
+exports.doLogout = async (req, res) => {
+  const { userId, sessionsId } = req;
+
+  await UsersSession.destroy({
+    where: {
+      id: sessionsId,
+      user_id: userId,
+    },
+  });
+
+  return res.sendStatus(200);
+};

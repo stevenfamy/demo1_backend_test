@@ -184,6 +184,9 @@ exports.doLogin = async (req, res) => {
     session_method: "Email",
   });
 
+  userData.last_login = Math.floor(new Date().getTime() / 1000);
+  await userData.save();
+
   if (!sessionsData)
     return res.status(500).send({ error: "Login Failed!, please try again" });
 
@@ -297,6 +300,8 @@ exports.doLoginOauth = async (req, res) => {
           {
             email: oauthEmail,
             password: "",
+            verification: 1,
+            status: 1,
           },
           { transaction }
         );

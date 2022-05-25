@@ -9,5 +9,9 @@ module.exports = (app) => {
     .get("/profile", auth.checkAuth, user.getProfile)
     .put("/profile", auth.checkAuth, user.putProfile);
 
+  router.get("/has-password", auth.checkAuth, user.hasPassword);
+  router.post("/change-password", auth.checkAuth, user.changePassword);
+  router.post("/create-password", auth.checkAuth, user.createPassword);
+
   app.use("/user", router);
 };

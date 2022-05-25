@@ -1,0 +1,28 @@
+FROM node:16.15.0-alpine3.15
+# RUN apt-get update || : && apt-get install python3 -y || : && apt-get install python3-pip -y
+# RUN pip3 install sklearn
+RUN mkdir -p /home/node/app/node_modules && chown -R root:root /home/node/app
+WORKDIR /home/node/app
+COPY package*.json ./
+
+USER root
+RUN npm install
+COPY --chown=root:root . .
+EXPOSE 5000
+
+ENV DB_SCHEMA=
+ENV DB_USER=
+ENV DB_PASSWORD=
+ENV DB_HOST=
+ENV DB_PORT=
+ENV DB_SSL=
+
+ENV FRONTEND_URL=https://aha.stevenfamy.me
+
+ENV JWT_SECRET=
+
+ENV SENDINBLUE_APIKEY=
+
+ENV GOOGLE_CLIENT_ID=
+
+CMD [ "node", "app.js" ]

@@ -13,5 +13,7 @@ module.exports = (app) => {
   router.post("/change-password", auth.checkAuth, user.changePassword);
   router.post("/create-password", auth.checkAuth, user.createPassword);
 
+  router.get("/", auth.checkAuth, user.getUserList);
+
   app.use("/user", router);
 };

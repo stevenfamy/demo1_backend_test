@@ -25,6 +25,14 @@ module.exports = (sequelize, Sequelize) => {
         type: Sequelize.TINYINT,
         defaultValue: 0,
       },
+      created_on: {
+        type: Sequelize.INTEGER,
+        defaultValue: Math.floor(new Date().getTime() / 1000),
+      },
+      total_login: {
+        type: Sequelize.INTEGER,
+        defaultValue: 0,
+      },
     },
     {
       freezeTableName: true,

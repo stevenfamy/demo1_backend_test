@@ -10,12 +10,15 @@ const {
   createConfirmationEmail,
   resendConfirmationEmail,
 } = require("../helpers/email.helper");
+const { convertTimestamp } = require("../helpers/general.helper");
 
 const Users = db.users;
 const UsersProfile = db.usersProfile;
 const UsersTokens = db.usersTokens;
 const UsersSession = db.usersSession;
 const UsersOauth = db.usersOauth;
+
+Users.hasOne(UsersProfile, { foreignKey: "user_id" });
 
 exports.getProfile = async (req, res) => {
   const { userId } = req;
@@ -127,4 +130,29 @@ exports.createPassword = async (req, res) => {
   await userData.save();
 
   return res.sendStatus(200);
+};
+
+exports.getUserList = async (req, res) => {
+  const usersList = await Users.findAll({
+    include: [
+      {
+        model: UsersProfile,
+        required: true,
+        attributes: ["first_name", "last_name"],
+      },
+    ],
+    attributes: ["id", "email", "last_login", "created_on", "total_login"],
+  }).then(async (results) =>
+    Promise.all(
+      results.map(async ({ dataValues }) => ({
+        ...dataValues,
+        last_login: await convertTimestamp(dataValues.last_login),
+        created_on: await convertTimestamp(dataValues.created_on),
+      }))
+    )
+  );
+
+  if (!usersList.length) return res.sendStatus(404);
+
+  return res.status(200).send({ userList: usersList });
 };

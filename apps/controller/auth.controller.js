@@ -120,6 +120,7 @@ exports.verifyEmail = async (req, res) => {
 
   userData.verification = 1;
   userData.status = 1;
+  userData.total_login += 1;
 
   await userData.save();
 
@@ -185,6 +186,7 @@ exports.doLogin = async (req, res) => {
   });
 
   userData.last_login = Math.floor(new Date().getTime() / 1000);
+  userData.total_login += 1;
   await userData.save();
 
   if (!sessionsData)
@@ -337,6 +339,12 @@ exports.doLoginOauth = async (req, res) => {
   }
 
   if (userId) {
+    const userData = await Users.findOne({ where: { id: userId } });
+    userData.last_login = Math.floor(new Date().getTime() / 1000);
+    userData.total_login += 1;
+
+    await userData.save();
+
     const jwtResult = createJWToken(userId);
 
     const sessionsData = await UsersSession.create({

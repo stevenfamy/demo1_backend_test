@@ -22,6 +22,10 @@ module.exports = (sequelize, Sequelize) => {
       session_method: {
         type: Sequelize.STRING(10),
       },
+      last_seen: {
+        type: Sequelize.INTEGER,
+        defaultValue: 0,
+      },
     },
     {
       freezeTableName: true,

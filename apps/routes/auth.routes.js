@@ -8,6 +8,7 @@ module.exports = (app) => {
   router.post("/resend-verification-email", auth.resendVerification);
   router.post("/verifiy/:tokens", auth.verifyEmail);
   router.post("/login", auth.doLogin);
+  router.post("/logout", auth.checkAuth, auth.doLogout);
 
   app.use("/", router);
 };

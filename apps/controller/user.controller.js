@@ -32,3 +32,25 @@ exports.getProfile = async (req, res) => {
     },
   });
 };
+
+exports.putProfile = async (req, res) => {
+  const { userId } = req;
+  const { firstName, lastName } = req.body;
+
+  if (!firstName || !lastName)
+    return res
+      .status(400)
+      .send({ error: "First Name & Last Name is required!" });
+
+  const userProfileData = await UsersProfile.findOne({
+    where: {
+      user_id: userId,
+    },
+  });
+
+  userProfileData.first_name = firstName;
+  userProfileData.last_name = lastName;
+  await userProfileData.save();
+
+  return res.sendStatus(200);
+};

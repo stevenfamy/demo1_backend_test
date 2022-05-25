@@ -5,7 +5,9 @@ module.exports = (app) => {
   const user = require("../controller/user.controller");
 
   // List of user API routes
-  router.get("/profile", auth.checkAuth, user.getProfile);
+  router
+    .get("/profile", auth.checkAuth, user.getProfile)
+    .put("/profile", auth.checkAuth, user.putProfile);
 
   app.use("/user", router);
 };

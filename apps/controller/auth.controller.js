@@ -138,6 +138,7 @@ exports.verifyEmail = async (req, res) => {
       .digest("hex"),
     created_on: Math.floor(new Date().getTime() / 1000),
     session_method: "Email",
+    last_seen: Math.floor(new Date().getTime() / 1000),
   });
 
   return res.status(200).send({ authToken: jwtResult.jwtToken });
@@ -183,6 +184,7 @@ exports.doLogin = async (req, res) => {
       .digest("hex"),
     created_on: Math.floor(new Date().getTime() / 1000),
     session_method: "Email",
+    last_seen: Math.floor(new Date().getTime() / 1000),
   });
 
   userData.last_login = Math.floor(new Date().getTime() / 1000);
@@ -356,6 +358,7 @@ exports.doLoginOauth = async (req, res) => {
         .digest("hex"),
       created_on: Math.floor(new Date().getTime() / 1000),
       session_method: type,
+      last_seen: Math.floor(new Date().getTime() / 1000),
     });
 
     if (!sessionsData)

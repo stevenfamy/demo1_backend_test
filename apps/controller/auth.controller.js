@@ -1,3 +1,4 @@
+const { OAuth2Client } = require("google-auth-library");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
@@ -17,6 +18,7 @@ const Users = db.users;
 const UsersProfile = db.usersProfile;
 const UsersTokens = db.usersTokens;
 const UsersSession = db.usersSession;
+const UsersOauth = db.usersOauth;
 
 const jwtSecret = "R1O8}_z!hE^TvcL";
 
@@ -68,11 +70,14 @@ exports.createNewAccount = async (req, res) => {
       { transaction }
     );
 
-    await UsersProfile.create({
-      user_id: userData.id,
-      first_name: firstName,
-      last_name: lastName,
-    });
+    await UsersProfile.create(
+      {
+        user_id: userData.id,
+        first_name: firstName,
+        last_name: lastName,
+      },
+      { transaction }
+    );
 
     await transaction.commit();
   } catch (e) {
@@ -233,4 +238,118 @@ exports.doLogout = async (req, res) => {
   });
 
   return res.sendStatus(200);
+};
+
+exports.doLoginOauth = async (req, res) => {
+  const { type, jwtToken } = req.body;
+  const client = await new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+  let userId = "";
+
+  if (type === "Google") {
+    const ticket = await client.verifyIdToken({
+      idToken: jwtToken,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+    const payload = ticket.getPayload();
+    const oauthUserId = payload.sub;
+    const oauthEmail = payload.email;
+
+    const existOauth = await UsersOauth.findOne({
+      where: {
+        type: "Google",
+        oauth_user_id: oauthUserId,
+      },
+    });
+
+    if (existOauth) {
+      console.log("oauth exist");
+      userId = existOauth.user_id;
+    }
+
+    const existEmail = await Users.findOne({
+      where: {
+        email: oauthEmail,
+      },
+    });
+
+    if (!existOauth) {
+      if (existEmail) {
+        console.log("email exist, create oauth");
+
+        await UsersOauth.create({
+          user_id: existEmail.id,
+          type: "Google",
+          oauth_user_id: oauthUserId,
+          connected_at: Math.floor(new Date().getTime() / 1000),
+        });
+
+        userId = existEmail.id;
+      }
+    }
+
+    if (!existEmail && !existOauth) {
+      console.log("email not exist, create user & oauth");
+
+      const transaction = await sequelize.transaction();
+      let userData = {};
+      try {
+        userData = await Users.create(
+          {
+            email: oauthEmail,
+            password: "",
+          },
+          { transaction }
+        );
+
+        await UsersProfile.create(
+          {
+            user_id: userData.id,
+            first_name: payload.given_name,
+            last_name: payload.family_name,
+          },
+          { transaction }
+        );
+
+        await UsersOauth.create(
+          {
+            user_id: userData.id,
+            type: "Google",
+            oauth_user_id: oauthUserId,
+            connected_at: Math.floor(new Date().getTime() / 1000),
+          },
+          { transaction }
+        );
+
+        await transaction.commit();
+      } catch (e) {
+        if (transaction) await transaction.rollback();
+        console.log(e);
+        return res.status(500).send({ error: e });
+      }
+
+      userId = userData.id;
+    }
+  }
+
+  if (userId) {
+    const jwtResult = createJWToken(userId);
+
+    const sessionsData = await UsersSession.create({
+      user_id: userId,
+      selector: jwtResult.rawToken.selector,
+      hashed_token: crypto
+        .createHash("md5")
+        .update(jwtResult.rawToken.token)
+        .digest("hex"),
+      created_on: Math.floor(new Date().getTime() / 1000),
+      session_method: type,
+    });
+
+    if (!sessionsData)
+      return res.status(500).send({ error: "Login Failed!, please try again" });
+
+    return res.status(200).send({ authToken: jwtResult.jwtToken });
+  }
+
+  return res.status(500).send({ error: "Login Failed!, please try again" });
 };

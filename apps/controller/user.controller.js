@@ -1,4 +1,6 @@
+const { DateTime } = require("luxon");
 const bcrypt = require("bcryptjs");
+const { Op } = require("sequelize");
 const db = require("../models");
 
 const { sequelize } = db;
@@ -19,6 +21,7 @@ const UsersSession = db.usersSession;
 const UsersOauth = db.usersOauth;
 
 Users.hasOne(UsersProfile, { foreignKey: "user_id" });
+Users.hasMany(UsersSession, { foreignKey: "user_id" });
 
 exports.getProfile = async (req, res) => {
   const { userId } = req;
@@ -140,19 +143,67 @@ exports.getUserList = async (req, res) => {
         required: true,
         attributes: ["first_name", "last_name"],
       },
+      {
+        model: UsersSession,
+        required: false,
+        attributes: ["last_seen"],
+      },
     ],
     attributes: ["id", "email", "last_login", "created_on", "total_login"],
   }).then(async (results) =>
     Promise.all(
-      results.map(async ({ dataValues }) => ({
-        ...dataValues,
-        last_login: await convertTimestamp(dataValues.last_login),
-        created_on: await convertTimestamp(dataValues.created_on),
-      }))
+      results.map(async ({ dataValues }) => {
+        if (dataValues.users_sessions.length) {
+          dataValues.users_sessions.sort((a, b) =>
+            a.last_seen < b.last_seen ? 1 : b.last_seen < a.last_seen ? -1 : 0
+          );
+        }
+        return {
+          ...dataValues,
+          last_login: dataValues.last_login
+            ? await convertTimestamp(dataValues.last_login)
+            : null,
+          created_on: dataValues.created_on
+            ? await convertTimestamp(dataValues.created_on)
+            : null,
+          last_seen: dataValues.users_sessions.length
+            ? await convertTimestamp(dataValues.users_sessions[0].last_seen)
+            : null,
+        };
+      })
     )
   );
 
   if (!usersList.length) return res.sendStatus(404);
 
   return res.status(200).send({ userList: usersList });
+};
+
+exports.getUserStat = async (req, res) => {
+  const temp0 = DateTime.now().toISODate();
+  const todayTimestamp = DateTime.fromISO(
+    `${temp0}T00:00:00+00:00`
+  ).toSeconds();
+  const tommorowTimestamp =
+    DateTime.fromSeconds(todayTimestamp).plus({ days: 1 }).toSeconds() - 1;
+
+  const lastSevenTimestamp = DateTime.fromSeconds(todayTimestamp)
+    .minus({ days: 7 })
+    .toSeconds();
+
+  const userCount = await Users.count();
+  const totalActiveToday = await UsersSession.count({
+    where: {
+      last_seen: { [Op.between]: [todayTimestamp, tommorowTimestamp] },
+    },
+  });
+  const totalActiveWeek = await UsersSession.count({
+    where: {
+      last_seen: { [Op.between]: [lastSevenTimestamp, tommorowTimestamp] },
+    },
+  });
+
+  return res
+    .status(200)
+    .send({ totalSignup: userCount, totalActiveToday, totalActiveWeek });
 };

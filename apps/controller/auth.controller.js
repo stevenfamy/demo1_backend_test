@@ -20,7 +20,7 @@ const UsersTokens = db.usersTokens;
 const UsersSession = db.usersSession;
 const UsersOauth = db.usersOauth;
 
-const jwtSecret = "R1O8}_z!hE^TvcL";
+const jwtSecret = process.env.JWT_SECRET;
 
 const createJWToken = (userId) => {
   const rawToken = {

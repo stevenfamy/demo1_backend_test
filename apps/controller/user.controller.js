@@ -56,9 +56,16 @@ exports.putProfile = async (req, res) => {
   return res.sendStatus(200);
 };
 
+exports.hasPassword = async (req, res) => {};
+
 exports.changePassword = async (req, res) => {
   const { userId } = req;
-  const { password, newPassword } = req.body;
+  const { password, newPassword, confirmNewPassword } = req.body;
+
+  if (newPassword !== confirmNewPassword)
+    return res
+      .status(400)
+      .send({ error: "New password & confirm new password not match!" });
 
   const userData = await Users.findOne({ where: { id: userId } });
 

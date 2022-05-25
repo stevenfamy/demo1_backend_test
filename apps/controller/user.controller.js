@@ -1,3 +1,4 @@
+const bcrypt = require("bcryptjs");
 const db = require("../models");
 
 const { sequelize } = db;
@@ -51,6 +52,38 @@ exports.putProfile = async (req, res) => {
   userProfileData.first_name = firstName;
   userProfileData.last_name = lastName;
   await userProfileData.save();
+
+  return res.sendStatus(200);
+};
+
+exports.changePassword = async (req, res) => {
+  const { userId } = req;
+  const { password, newPassword } = req.body;
+
+  const userData = await Users.findOne({ where: { id: userId } });
+
+  const checkPassword = bcrypt.compareSync(password, userData.password);
+
+  if (!checkPassword)
+    return res
+      .status(400)
+      .send({ error: "Current Password Account not match!" });
+
+  if (password === newPassword)
+    return res.status(400).send({
+      error: "New password cannot be the same with current password!",
+    });
+
+  const checkPasswordResult = await checkPasswordRequirement(newPassword);
+  if (checkPasswordResult.length)
+    return res
+      .status(400)
+      .send({ validationFailed: true, checkPasswordResult });
+
+  const hashedNewPwd = bcrypt.hashSync(newPassword, 8);
+
+  userData.password = hashedNewPwd;
+  await userData.save();
 
   return res.sendStatus(200);
 };

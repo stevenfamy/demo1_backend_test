@@ -17,6 +17,7 @@ app.use(express.urlencoded({ extended: true }));
 
 // Load the routes file
 require("./apps/routes/auth.routes")(app);
+require("./apps/routes/user.routes")(app);
 
 const server = app.listen(PORT);
 console.log(`Server started at port ${PORT}`);

@@ -1,0 +1,9 @@
+version: "3.3"
+
+services:
+  aha-backend-main:
+    image: stevenfamy/aha-backend-test:latest
+    container_name: aha-backend-main
+    ports:
+      - 5000:5000
+    restart: unless-stopped

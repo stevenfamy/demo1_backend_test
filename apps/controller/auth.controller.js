@@ -1,4 +1,5 @@
 const { OAuth2Client } = require("google-auth-library");
+const axios = require("axios").default;
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
@@ -249,95 +250,141 @@ exports.doLogout = async (req, res) => {
 
 exports.doLoginOauth = async (req, res) => {
   const { type, jwtToken } = req.body;
-  const client = await new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
   let userId = "";
+  let oauthUserId = "";
+  let oauthEmail = "";
+  let firstName = "";
+  let lastName = "";
+  let payload = "";
 
+  console.log(type);
   if (type === "Google") {
+    const client = await new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
     const ticket = await client.verifyIdToken({
       idToken: jwtToken,
       audience: process.env.GOOGLE_CLIENT_ID,
     });
-    const payload = ticket.getPayload();
-    const oauthUserId = payload.sub;
-    const oauthEmail = payload.email;
 
-    const existOauth = await UsersOauth.findOne({
-      where: {
+    if (!ticket) return res.sendStatus(400);
+
+    payload = ticket.getPayload();
+    firstName = payload.given_name;
+    lastName = payload.family_name;
+    oauthUserId = payload.sub;
+    oauthEmail = payload.email;
+  } else if (type === "Facebook") {
+    // request Facebook access_token
+    const fbRequest = await axios
+      .get(
+        `https://graph.facebook.com/oauth/access_token?client_id=${process.env.FB_APP_ID}&client_secret=${process.env.FB_APP_SECRET}&grant_type=client_credentials`
+      )
+      .catch((e) => {
+        console.log(e);
+      });
+    const fbAccessToken = fbRequest.data.access_token;
+
+    const checkFbToken = await axios
+      .get(
+        `https://graph.facebook.com/debug_token?input_token=${jwtToken}&access_token=${fbAccessToken}`
+      )
+      .catch((e) => {
+        console.log(e.response.data);
+      });
+
+    if (!checkFbToken.data.data.is_valid) return res.sendStatus(400);
+    oauthUserId = checkFbToken.data.data.user_id;
+
+    const fbProfileData = await axios
+      .get(
+        `https://graph.facebook.com/me?fields=id,name,email&access_token=${jwtToken}`
+      )
+      .catch((e) => {
+        console.log(e.response.data);
+      });
+
+    const { name: fbName, email: fbEmail } = fbProfileData.data;
+    oauthEmail = fbEmail;
+    const [first, last] = fbName.split(" ");
+    firstName = first;
+    lastName = last;
+  }
+
+  const existOauth = await UsersOauth.findOne({
+    where: {
+      type: type,
+      oauth_user_id: oauthUserId,
+    },
+  });
+
+  if (oauthUserId && existOauth) {
+    console.log("oauth exist");
+    userId = existOauth.user_id;
+  }
+
+  const existEmail = await Users.findOne({
+    where: {
+      email: oauthEmail,
+    },
+  });
+
+  if (oauthEmail && !existOauth) {
+    if (existEmail) {
+      console.log("email exist, create oauth");
+
+      await UsersOauth.create({
+        user_id: existEmail.id,
         type: "Google",
         oauth_user_id: oauthUserId,
-      },
-    });
+        connected_at: Math.floor(new Date().getTime() / 1000),
+      });
 
-    if (existOauth) {
-      console.log("oauth exist");
-      userId = existOauth.user_id;
+      userId = existEmail.id;
     }
+  }
 
-    const existEmail = await Users.findOne({
-      where: {
-        email: oauthEmail,
-      },
-    });
+  if (!existEmail && !existOauth && oauthEmail) {
+    console.log("email not exist, create user & oauth");
 
-    if (!existOauth) {
-      if (existEmail) {
-        console.log("email exist, create oauth");
+    const transaction = await sequelize.transaction();
+    let userData = {};
+    try {
+      userData = await Users.create(
+        {
+          email: oauthEmail,
+          password: "",
+          verification: 1,
+          status: 1,
+        },
+        { transaction }
+      );
 
-        await UsersOauth.create({
-          user_id: existEmail.id,
+      await UsersProfile.create(
+        {
+          user_id: userData.id,
+          first_name: firstName,
+          last_name: lastName,
+        },
+        { transaction }
+      );
+
+      await UsersOauth.create(
+        {
+          user_id: userData.id,
           type: "Google",
           oauth_user_id: oauthUserId,
           connected_at: Math.floor(new Date().getTime() / 1000),
-        });
+        },
+        { transaction }
+      );
 
-        userId = existEmail.id;
-      }
+      await transaction.commit();
+    } catch (e) {
+      if (transaction) await transaction.rollback();
+      console.log(e);
+      return res.status(500).send({ error: e });
     }
 
-    if (!existEmail && !existOauth) {
-      console.log("email not exist, create user & oauth");
-
-      const transaction = await sequelize.transaction();
-      let userData = {};
-      try {
-        userData = await Users.create(
-          {
-            email: oauthEmail,
-            password: "",
-            verification: 1,
-            status: 1,
-          },
-          { transaction }
-        );
-
-        await UsersProfile.create(
-          {
-            user_id: userData.id,
-            first_name: payload.given_name,
-            last_name: payload.family_name,
-          },
-          { transaction }
-        );
-
-        await UsersOauth.create(
-          {
-            user_id: userData.id,
-            type: "Google",
-            oauth_user_id: oauthUserId,
-            connected_at: Math.floor(new Date().getTime() / 1000),
-          },
-          { transaction }
-        );
-
-        await transaction.commit();
-      } catch (e) {
-        if (transaction) await transaction.rollback();
-        console.log(e);
-        return res.status(500).send({ error: e });
-      }
-
-      userId = userData.id;
-    }
+    userId = userData.id;
   }
 
   if (userId) {

@@ -147,30 +147,24 @@ exports.getUserList = async (req, res) => {
         model: UsersSession,
         required: false,
         attributes: ["last_seen"],
+        sort: ["last_seen", "desc"],
       },
     ],
     attributes: ["id", "email", "last_login", "created_on", "total_login"],
   }).then(async (results) =>
     Promise.all(
-      results.map(async ({ dataValues }) => {
-        if (dataValues.users_sessions.length) {
-          dataValues.users_sessions.sort((a, b) =>
-            a.last_seen < b.last_seen ? 1 : b.last_seen < a.last_seen ? -1 : 0
-          );
-        }
-        return {
-          ...dataValues,
-          last_login: dataValues.last_login
-            ? await convertTimestamp(dataValues.last_login)
-            : null,
-          created_on: dataValues.created_on
-            ? await convertTimestamp(dataValues.created_on)
-            : null,
-          last_seen: dataValues.users_sessions.length
-            ? await convertTimestamp(dataValues.users_sessions[0].last_seen)
-            : null,
-        };
-      })
+      results.map(async ({ dataValues }) => ({
+        ...dataValues,
+        last_login: dataValues.last_login
+          ? await convertTimestamp(dataValues.last_login)
+          : null,
+        created_on: dataValues.created_on
+          ? await convertTimestamp(dataValues.created_on)
+          : null,
+        last_seen: dataValues.users_sessions.length
+          ? await convertTimestamp(dataValues.users_sessions[0].last_seen)
+          : null,
+      }))
     )
   );
 

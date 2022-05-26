@@ -1,0 +1,13 @@
+node_modules
+npm-debug.log
+.dockerignore
+.gitignore
+.git
+.env
+.env.example
+docker-compose.yml
+
+store
+tmp
+
+

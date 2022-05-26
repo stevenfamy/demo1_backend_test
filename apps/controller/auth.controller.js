@@ -209,7 +209,7 @@ exports.checkAuth = async (req, res, next) => {
   try {
     result = jwt.verify(authToken, jwtSecret);
   } catch (e) {
-    return res.status(500).send();
+    return res.status(400).send(e);
   }
 
   if (!result) return res.sendStatus(401);
@@ -260,10 +260,15 @@ exports.doLoginOauth = async (req, res) => {
   console.log(type);
   if (type === "Google") {
     const client = await new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
-    const ticket = await client.verifyIdToken({
-      idToken: jwtToken,
-      audience: process.env.GOOGLE_CLIENT_ID,
-    });
+    let ticket = {};
+    try {
+      ticket = await client.verifyIdToken({
+        idToken: jwtToken,
+        audience: process.env.GOOGLE_CLIENT_ID,
+      });
+    } catch (e) {
+      return res.status(400).send(e);
+    }
 
     if (!ticket) return res.sendStatus(400);
 

@@ -32,6 +32,8 @@
     "password-validator": "^5.3.0",
     "sequelize": "^6.19.2",
     "sib-api-v3-sdk": "^8.3.0",
+    "swagger-jsdoc": "^6.2.1",
+    "swagger-ui-express": "^4.4.0",
     "uuid": "^8.3.2"
   },
   "devDependencies": {

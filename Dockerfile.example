@@ -18,6 +18,7 @@ ENV DB_PORT=
 ENV DB_SSL=
 
 ENV FRONTEND_URL=https://aha.stevenfamy.me
+ENV BACKEND_URL=https://aha.stevenfamy.me:81
 
 ENV JWT_SECRET=
 

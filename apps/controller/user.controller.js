@@ -1,5 +1,6 @@
 const { DateTime } = require("luxon");
 const bcrypt = require("bcryptjs");
+const Sequelize = require("sequelize");
 const { Op } = require("sequelize");
 const db = require("../models");
 
@@ -164,6 +165,7 @@ exports.getUserList = async (req, res) => {
         last_seen: dataValues.users_sessions.length
           ? await convertTimestamp(dataValues.users_sessions[0].last_seen)
           : null,
+        total_sessions: dataValues.users_sessions.length,
       }))
     )
   );

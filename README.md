@@ -4,16 +4,16 @@ This is a NodeJs Backend demonstration.
 Test it live on:
 #### Backend
 ```bash
-https://aha.stevenfamy:81/
+https://demo1.stevenfamy:81/
 ```
 #### Frontend 
 https://github.com/stevenfamy/aha_frontend_test
 ```bash
-https://aha.stevenfamy.me/
+https://demo1.stevenfamy.me/
 ```
 
 ## Documentation
-[Swagger](https://aha.stevenfamy.me:81/api-docs) 
+[Swagger](https://demo1.stevenfamy.me:81/api-docs) 
 
 or if run on local 
 
